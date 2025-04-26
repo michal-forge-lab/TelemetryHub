@@ -1,0 +1,14 @@
+FROM mcr.microsoft.com/dotnet/runtime-deps:9.0 AS base
+WORKDIR /app
+
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+WORKDIR /src
+COPY ["src/TelemetryHub.Server/TelemetryHub.Server.csproj", "src/TelemetryHub.Server/"]
+RUN dotnet restore "src/TelemetryHub.Server/TelemetryHub.Server.csproj"
+COPY . .
+RUN dotnet publish "src/TelemetryHub.Server/TelemetryHub.Server.csproj" -c Release -o /app/publish -p:PublishAot=true
+
+FROM base AS final
+WORKDIR /app
+COPY --from=build /app/publish .
+ENTRYPOINT ["./TelemetryHub.Server"]

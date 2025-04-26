@@ -1,0 +1,22 @@
+﻿<!-- src/TelemetryHub.Client/TelemetryHub.Client.csproj -->
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net9.0</TargetFramework>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Grpc.Net.Client" Version="2.71.0" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.4" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\TelemetryHub.Server\TelemetryHub.Server.csproj" />
+		<ProjectReference Include="..\TelemetryHub.Shared\TelemetryHub.Shared.csproj" />
+	</ItemGroup>
+
+
+	<ItemGroup>
+		<Protobuf Include="..\TelemetryHub.Server\Protos\telemetry.proto" GrpcServices="Client" />
+	</ItemGroup>
+</Project>
