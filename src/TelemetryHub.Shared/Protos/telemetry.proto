@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+option csharp_namespace = "TelemetryHub.Shared";   
 import "google/protobuf/empty.proto";  // <-- dodany import
 
 package telemetry.v1;

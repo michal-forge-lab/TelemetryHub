@@ -1,0 +1,32 @@
+﻿@page "/live"
+@using TelemetryHub.Shared       
+@inject Telemetry.TelemetryClient Client
+
+<h3>📡 Live telemetry</h3>
+
+<ul>
+    @foreach (var e in events)
+    {
+        <li>@($"{e.Service}: {e.Level} – {e.Message}")</li>
+    }
+</ul>
+
+@code {
+    // ---------- fields ----------
+    private readonly List<Event> events = new();  
+
+    // ---------- lifecycle ----------
+    protected override async Task OnInitializedAsync()
+    {
+        var stream = Client.Subscribe(new Google.Protobuf.WellKnownTypes.Empty());
+
+        while (await stream.ResponseStream.MoveNext(CancellationToken.None))
+        {
+            events.Insert(0, stream.ResponseStream.Current);
+            if (events.Count > 100)             
+                events.RemoveAt(events.Count - 1);
+
+            StateHasChanged();                   
+        }
+    }
+}
