@@ -1,6 +1,6 @@
 # 🚀 TelemetryHub
 
-Light‑weight gRPC service for collecting and streaming telemetry events (logs/metrics) between micro‑services.  
+Light‑weight gRPC service for collecting and streaming telemetry events (logs/metrics) between micro‑services.
 
 ---
 
@@ -10,8 +10,9 @@ Light‑weight gRPC service for collecting and streaming telemetry events (logs/
 3. [🛠️ Prerequisites](#️-prerequisites)
 4. [▶️ Getting started](#️-getting-started)
    * [🖥️ Run the server](#️-run-the-server)
+   * [🌐 Run the Blazor UI](#-run-the-blazor-ui)
    * [📤 Send a single event](#-send-a-single-event)
-   * [📡 Subscribe to the live feed](#-subscribe-to-the-live-feed)
+   * [📡 Live feed](#-live-feed)
 5. [📦 Bulk upload](#-bulk-upload)
 6. [🛣️ Road‑map](#️-road-map)
 7. [🛠️ Troubleshooting](#️-troubleshooting)
@@ -27,21 +28,22 @@ Light‑weight gRPC service for collecting and streaming telemetry events (logs/
 ---
 
 ## 🧩 Project structure
-```
+```text
 TelemetryHub
 │  TelemetryHub.sln
 └─ src
-   ├─ TelemetryHub.Shared      # .proto -> generated C# (models + stubs)
-   ├─ TelemetryHub.Server      # ASP.NET Core gRPC host
+   ├─ TelemetryHub.Shared      # .proto ➜ generated C# (models + stubs)
+   ├─ TelemetryHub.Server      # ASP.NET Core gRPC host
    ├─ TelemetryHub.Client      # SDK / factory for other services
-   └─ TelemetryHub.QuickClient # tiny console demo (Subscribe)
+   ├─ TelemetryHub.QuickClient # tiny console demo (Subscribe / SendEvent)
+   └─ TelemetryHub.UI          # Blazor WebAssembly live dashboard
 ```
 
 ---
 
 ## 🛠️ Prerequisites
-* .NET 9 SDK (`dotnet --version` ≥ 9.0.200)
-* Windows dev-cert trusted (HTTPS only):
+* .NET 9 SDK (`dotnet --version` ≥ 9.0.200)
+* Trust the dev HTTPS cert (Windows/macOS):
   ```powershell
   dotnet dev-certs https --trust
   ```
@@ -53,44 +55,45 @@ TelemetryHub
 ### 🖥️ Run the server
 ```powershell
 cd src/TelemetryHub.Server
-# option A – HTTP/2 plaintext (dev‑friendly)
-dotnet run                        # listens on http://localhost:5121 (HTTP/2)
+# HTTP/2 plaintext (dev‑friendly)
+dotnet run                        # http://localhost:5121 (HTTP/2)
 
-# option B – HTTPS (default template)
-dotnet run --launch-profile https # listens on https://localhost:7033 (HTTP/2)
+# HTTPS profile
+dotnet run --launch-profile https # https://localhost:7033 (HTTP/2) + http://localhost:5121
 ```
 
-### 📤 Send a single event
-> Quick and dirty using QuickClient
+### 🌐 Run the Blazor UI
+```powershell
+cd src/TelemetryHub.UI
+dotnet run                         # http://localhost:5252
+                                   # navigate to /live
+```
+
+### 📤 Send a single event (QuickClient)
 ```powershell
 cd src/TelemetryHub.QuickClient
-# edit Program.cs to uncomment SendEvent snippet, then
+# Program.cs already contains SendEvent example
 dotnet run
 ```
-Or with `grpcurl`:
+Or via **grpcurl**:
 ```bash
 grpcurl -plaintext localhost:5121 telemetry.v1.Telemetry/SendEvent \
   -d '{"service":"Postman","timestamp":0,"level":"INFO","message":"It works!"}'
 ```
 
-### 📡 Subscribe to the live feed
-QuickClient already demonstrates server-streaming `Subscribe`:
-```powershell
-cd src/TelemetryHub.QuickClient
-# Program.cs prints every event it receives
-dotnet run
-```
-Anything you `SendEvent` will appear live in that console.
+### 📡 Live feed
+1. Open the UI at `http://localhost:5252/live`  
+2. Any `SendEvent` or `BulkUpload` appears instantly in the list.
 
 ---
 
-## 📦 Bulk upload
+## 📦 Bulk upload (client‑stream)
 ```csharp
 using var call = client.BulkUpload();
 foreach (var ev in events)
     await call.RequestStream.WriteAsync(ev);
 await call.RequestStream.CompleteAsync();
-await call.ResponseAsync; // ACK
+await call.ResponseAsync; // ACK from server
 ```
 
 ---
@@ -99,20 +102,22 @@ await call.ResponseAsync; // ACK
 | Milestone | Description |
 |-----------|-------------|
 | 🔧 **Persistence** | Save events in SQLite/PostgreSQL. |
-| 📡 **Dashboard**   | Blazor WASM UI streaming `Subscribe`. |
-| ♻️ **OpenTelemetry** | Trace gRPC calls & export to Prometheus. |
-| 📦 **Docker** | Multi‑stage build & docker-compose. |
-| 🚀 **CI/CD** | GitHub Actions – build, test, push image. |
+| 📡 **Dashboard**   | Blazor WASM UI streaming `Subscribe` (✔ basic view). |
+| ♻️ **OpenTelemetry** | Trace gRPC calls & export to Prometheus / Jaeger. |
+| 📦 **Docker** | Multi‑stage build & docker‑compose. |
+| 🚀 **CI/CD** | GitHub Actions – build, test, push image. |
 
 ---
 
 ## 🛠️ Troubleshooting
 | Symptom | Fix |
 |---------|------|
-| `StatusCode Unavailable` | Ensure server listens on correct protocol / port; QuickClient needs `Http2UnencryptedSupport` for plaintext. |
-| `Certificate error` | Run `dotnet dev-certs https --trust` or switch to plaintext profile. |
-| Code gen errors | `dotnet clean`, `dotnet restore`; check `<Protobuf Include="Protos/telemetry.proto" GrpcServices="Both" />` in Shared project. |
+| `StatusCode Unavailable` | Ensure server & client use the same protocol/port; QuickClient/Blazor needs gRPC‑Web or `Http2UnencryptedSupport` for plaintext. |
+| `NETSDK1082` runtime pack | Do **NOT** reference TelemetryHub.Server in WASM; keep only *TelemetryHub.Shared* reference. |
+| `Certificate error` | Run `dotnet dev-certs https --trust` or start server in plaintext mode. |
+| Code generation errors | `dotnet clean`, `dotnet restore`; verify `<Protobuf Include="Protos/telemetry.proto" GrpcServices="Both" />` in *Shared*. |
 
 ---
 
-Happy hacking! 🚀
+Happy hacking and streaming! 🚀
+
